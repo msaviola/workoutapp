@@ -1,91 +1,118 @@
+// Server Dependencies
 const express = require("express");
-const logger = require("morgan");
-const mongoose = require("mongoose");
+const bodyParser = require('body-parser');
+const path = require('path');
+// Database Connection Request
+// require('/config');
+const connectDB = require("./config/connectDB.js");
 
-const PORT = process.env.PORT || 3000;
+//Bring in models
+const db = require("./models");
 
-const Workout = require("./Develop/models.js");
-const app = express();
+// Create an instance of the express app.
+let app = express();
+// Added so body parser can handle post requests
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+// Host Static Files so css and js files can be retrieved
+app.use(express.static(path.join(__dirname, '/public')));
+// Set the port of our application, process.env.PORT lets the port be set by Heroku
+let PORT = process.env.PORT || 3000;
 
-app.use(logger("dev"));
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+/******************************* Routes  ****************************/
 
-app.use(express.static("Develop/public"));
+app.get("/", (req,res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost/Workout", { useNewUrlParser: true });
+app.get("/exercise", (req,res) => {
+    res.sendFile(path.join(__dirname, 'public', 'exercise.html'));
+});
 
-app.post("/submit", ({ body }, res) => {
-  User.create(body)
-    .then(workouts => {
-      res.json(workouts);
+app.get("/stats", (req,res) => {
+  res.sendFile(path.join(__dirname, 'public', 'stats.html'));
+});
+
+/******************************* MiddleWare  ****************************/
+
+
+//GET REQUESTS
+
+
+app.get("/api/workouts", (req,res) => {
+  db.Workout.find({}).sort({day:-1}).limit(1)
+  .then(dbWorkout => {
+    res.json(dbWorkout);
+  })
+  .catch(err => {
+    res.json(err);
+  });
+});
+
+app.get("/api/workouts/range", (req,res) => {
+  db.Workout.find({})
+  .then(dbWorkout => {
+    res.json(dbWorkout);
+  })
+  .catch(err => {
+    res.json(err);
+  });
+});
+
+
+
+//PUT REQUESTS
+
+app.put("/api/workouts/:id", (req,res) => {
+
+let urlData = req.params;
+let data = req.body;
+  db.Workout.updateOne( {_id: urlData.id }, {$push: {exercises:  [
+    {
+    "type" : data.type,
+    "name" : data.name,
+    "duration" : data.duration,
+    "distance" : data.distance,
+    "weight" : data.weight,
+    "reps" : data.reps,
+    "sets" : data.sets
+    }
+  ] 
+}}).then(dbUpdate => {
+  res.json(dbUpdate);
+})
+.catch(err => {
+  res.json(err);
+});
+
+});
+
+
+//POST REQUESTS
+
+app.post("/api/workouts", (req,res) => {
+
+  let data = req.body;
+
+  db.Workout.create({
+    day: new Date().setDate(new Date().getDate())
+}).then(dbUpdate => {
+      res.json(dbUpdate);
     })
     .catch(err => {
       res.json(err);
     });
 });
 
-app.listen(PORT, () => {
-  console.log(`App running on port ${PORT}!`);
+
+
+
+/******************************* Connect to db  ****************************/
+connectDB()
+
+// Start our server so that it can begin listening to client requests.
+app.listen(PORT, function() {
+  // Log (server-side) when our server has started
+  console.log("Server listening on: http://localhost:" + PORT);
 });
-
-
-
-
-// const express = require("express");
-// const mongojs = require("mongojs");
-// const mongoose = require("mongoose");
-
-// const app = express();
-
-// const databaseUrl = "Workout";
-// const collections = ["workouts"];
-
-// const db = mongojs(databaseUrl, collections);
-
-// const PORT = process.env.PORT || 3000;
-
-// // const Exercise = require("models.js");
-
-// app.use(express.static("public"));
-
-// // mongoose.connect(process.env.MONGODB_URI || "Workout", { useNewUrlParser: true });
-// // mongoose.connect('mongodb://localhost:27017/myapp', {useNewUrlParser: true});
-
-
-// // mongoose.connect(
-// //   process.env.MONGODB_URI || 'mongodb://localhost/deep-thoughts',
-// //   {
-// //     useNewUrlParser: true,
-// //     useUnifiedTopology: true,
-// //     useCreateIndex: true,
-// //     useFindAndModify: false
-// //   }
-// // );
-
-
-// db.on("error", error => {
-//   console.log("Database Error:", error);
-// });
-
-// // app.get("/", (req, res) => {
-
- 
-
-// //   res.sendFile(path.join(__dirname + "./public/index.html"));
-// // });
-
-// app.get("/", (req, res) => {
-//   db.workouts.find({}, (err, data) => {
-//     if (err) {
-//       console.log(err);
-//     } else {
-//       res.json(data);
-//     }
-//   });
-// });
-
-// app.listen(3000, () => {
-//   console.log("App running on port 3000!");
-// });
